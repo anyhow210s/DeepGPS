@@ -6,7 +6,7 @@
 
 This project trains a deep learning image classifier to predict the location category of a photo without using EXIF GPS metadata. It is designed as a deep learning course assignment using PyTorch transfer learning with a pretrained ResNet50 convolutional neural network (CNN).
 
-The model learns visual clues such as landscape, architecture, vegetation, road patterns, and color distributions from locally exported Google Photos images. It does not call the Google Photos API, OpenAI API, or any external AI API.
+The model learns visual clues such as landscape, architecture, vegetation, road patterns, and color distributions from a local image dataset that has already been manually organized by location. It does not call any external AI API or online photo service.
 
 ## Why This Is Deep Learning
 
@@ -21,11 +21,10 @@ ResNet50 is a deep convolutional neural network pretrained on ImageNet. Its conv
 Photo Geolocation Prediction using Deep Learning/
 ├── data/
 │   ├── raw/
-│   │   ├── Santa_Cruz/
-│   │   ├── San_Francisco/
-│   │   ├── Yosemite/
-│   │   ├── Las_Vegas/
-│   │   └── Vancouver/
+│   │   ├── Location_A/
+│   │   ├── Location_B/
+│   │   ├── Location_C/
+│   │   └── ...
 │   └── processed/
 │       ├── train/
 │       ├── val/
@@ -49,26 +48,23 @@ Photo Geolocation Prediction using Deep Learning/
 └── requirements.txt
 ```
 
-## Export Photos with Google Takeout
+## Dataset
 
-1. Open [Google Takeout](https://takeout.google.com/).
-2. Click **Deselect all**, then select **Google Photos**.
-3. Choose the albums or photos to export and create the export.
-4. Download and extract the Takeout archive locally.
-5. Manually copy photos into location folders under `data/raw/`.
+This project assumes that the image dataset has already been manually classified into one folder per location. The model does not use GPS metadata, EXIF coordinates, or any online photo service connection.
 
-Use this expected structure:
+Use this expected folder structure:
 
 ```text
 data/raw/
-  Santa_Cruz/
-  San_Francisco/
-  Yosemite/
-  Las_Vegas/
-  Vancouver/
+  Location_A/
+  Location_B/
+  Location_C/
+  ...
 ```
 
-Each class folder may contain JPG, JPEG, PNG, HEIC, or HEIF images. Google Takeout JSON sidecar files, videos, and unsupported files are ignored. Corrupted images are skipped. The preparation script converts validated images into standard RGB JPEG files in `data/processed/`, leaving the raw export unchanged.
+Each folder name becomes one location class. For example, if the folder is named `Yosemite`, the model treats `Yosemite` as one prediction category.
+
+Each class folder may contain JPG, JPEG, PNG, HEIC, or HEIF images. JSON files, videos, and unsupported files are ignored. Corrupted images are skipped. The preparation script converts validated images into standard RGB JPEG files in `data/processed/`, leaving the original raw images unchanged.
 
 Avoid using near-duplicate burst photos across location classes, and try to collect a balanced number of photos for each location.
 
@@ -181,17 +177,16 @@ The UI opens in a web browser and provides three tabs:
 - **Photo Prediction:** Upload a JPG, PNG, or HEIC photo, view the top three predicted locations with probabilities, and inspect a Grad-CAM explanation.
 - **Training Results:** View saved training and validation curves, the classification report, the confusion matrix, and the evaluation summary.
 
-Streamlit cannot reliably open a native folder picker from the browser, so the dashboard uses a local path text box. Enter either an absolute path, such as `/Users/you/Downloads/TakeoutPhotos`, or a project-relative path, such as `data/raw`.
+Streamlit cannot reliably open a native folder picker from the browser, so the dashboard uses a local path text box. Enter either an absolute path to the manually classified image folder, such as `/Users/you/Datasets/PhotoLocations`, or a project-relative path, such as `data/raw`.
 
 The selected folder must contain one subfolder per location class:
 
 ```text
 data/raw/
-  Santa_Cruz/
-  San_Francisco/
-  Yosemite/
-  Las_Vegas/
-  Vancouver/
+  Location_A/
+  Location_B/
+  Location_C/
+  ...
 ```
 
 When training is launched from the UI, it runs the same local scripts:

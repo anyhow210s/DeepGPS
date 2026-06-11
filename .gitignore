@@ -2,6 +2,7 @@
 # 한국어: 로컬 환경, 데이터셋, 생성 결과물, 캐시 파일을 버전 관리에서 제외합니다.
 
 .venv/
+.pptx_deps/
 __pycache__/
 *.pyc
 .DS_Store

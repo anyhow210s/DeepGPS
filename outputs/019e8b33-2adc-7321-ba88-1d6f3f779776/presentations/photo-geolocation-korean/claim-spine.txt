@@ -5,7 +5,7 @@ Arc: 문제 정의 -> 데이터 -> 모델 -> 학습 설정 -> 평가 수치 해�
 Slides:
 1. Cover: 로컬 사진만으로 위치를 예측하는 CNN 전이학습 프로젝트.
 2. Problem: GPS 메타데이터 없이 이미지 자체의 단서로 위치 카테고리를 분류한다.
-3. Dataset: Google Takeout 사진을 로컬 위치 폴더로 정리하고 70/15/15로 분할했다.
+3. Dataset: 사용자가 위치별로 수동 분류한 로컬 이미지 폴더를 70/15/15로 분할했다.
 4. Pipeline: data -> preprocessing -> ResNet50 -> training -> evaluation -> Streamlit demo.
 5. Model: ImageNet pretrained ResNet50의 마지막 분류층을 17개 위치 클래스로 교체했다.
 6. Training settings: classifier head 5 epoch 후 layer4 fine-tuning 3 epoch를 수행했다.
