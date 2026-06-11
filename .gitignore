@@ -1,0 +1,25 @@
+# English: Excludes local environments, datasets, generated outputs, and cache files.
+# 한국어: 로컬 환경, 데이터셋, 생성 결과물, 캐시 파일을 버전 관리에서 제외합니다.
+
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/raw/Santa_Cruz/
+!data/raw/San_Francisco/
+!data/raw/Yosemite/
+!data/raw/Las_Vegas/
+!data/raw/Vancouver/
+!data/raw/*/.gitkeep
+!data/processed/.gitkeep
+
+outputs/models/*
+outputs/figures/*
+outputs/reports/*
+!outputs/models/.gitkeep
+!outputs/figures/.gitkeep
+!outputs/reports/.gitkeep

@@ -1,0 +1,16 @@
+# English: Python packages required to prepare data, train, evaluate, and visualize the model.
+# 한국어: 데이터 준비, 모델 학습, 평가, 시각화에 필요한 Python 패키지 목록입니다.
+
+torch
+torchvision
+pillow
+pillow-heif
+pandas
+numpy
+matplotlib
+scikit-learn
+tqdm
+opencv-python
+seaborn
+jupyter
+streamlit
