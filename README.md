@@ -81,6 +81,56 @@ pip install -r requirements.txt
 
 PyTorch automatically uses Apple Silicon Metal Performance Shaders (`mps`) when available. If MPS is unavailable, the scripts fall back to CPU.
 
+## Quick Run Commands
+
+Use the commands below from the project root folder.
+
+```bash
+cd /Users/koscom/Documents/DeepGPS
+```
+
+If you are using the Anaconda Python environment on this Mac:
+
+```bash
+/opt/anaconda3/bin/python -m streamlit run src/app.py
+```
+
+If you are using a virtual environment:
+
+```bash
+source .venv/bin/activate
+streamlit run src/app.py
+```
+
+The Streamlit UI is the easiest way to demonstrate the project. It lets you select Korean or English, enter the local photo folder path, prepare the dataset, start training, run evaluation, upload a test photo, and view Grad-CAM results.
+
+For command-line execution, run the project in this order:
+
+```bash
+python src/prepare_dataset.py --overwrite
+python src/train.py
+python src/evaluate.py
+python src/predict.py --image path/to/photo.jpg
+python src/gradcam.py --image path/to/photo.jpg
+```
+
+한국어 요약:
+
+```bash
+# 1. 프로젝트 폴더로 이동
+cd /Users/koscom/Documents/DeepGPS
+
+# 2. Streamlit UI 실행
+/opt/anaconda3/bin/python -m streamlit run src/app.py
+
+# 3. 터미널에서 직접 실행하는 경우
+python src/prepare_dataset.py --overwrite
+python src/train.py
+python src/evaluate.py
+python src/predict.py --image path/to/photo.jpg
+python src/gradcam.py --image path/to/photo.jpg
+```
+
 ## Prepare the Dataset
 
 The script validates source images, prints class counts, and creates a reproducible 70% training, 15% validation, and 15% test split.
@@ -173,11 +223,11 @@ streamlit run src/app.py
 
 The UI opens in a web browser and provides three tabs:
 
-- **Data & Training:** Enter the local folder path containing location subfolders, prepare the dataset, train ResNet50, and optionally run test evaluation automatically.
+- **Data & Training:** Select the local folder containing location subfolders, prepare the dataset, train ResNet50, and optionally run test evaluation automatically.
 - **Photo Prediction:** Upload a JPG, PNG, or HEIC photo, view the top three predicted locations with probabilities, and inspect a Grad-CAM explanation.
 - **Training Results:** View saved training and validation curves, the classification report, the confusion matrix, and the evaluation summary.
 
-Streamlit cannot reliably open a native folder picker from the browser, so the dashboard uses a local path text box. Enter either an absolute path to the manually classified image folder, such as `/Users/you/Datasets/PhotoLocations`, or a project-relative path, such as `data/raw`.
+On macOS, click `Choose Photo Folder` in the dashboard to select the manually classified image folder with a native folder dialog. The selected path is shown below the button.
 
 The selected folder must contain one subfolder per location class:
 

@@ -42,6 +42,18 @@ st.set_page_config(
 )
 
 
+def ui_text(english: str, korean: str) -> str:
+    """Return UI text in the selected language.
+
+    English:
+        Keeps Streamlit labels readable by showing either English or Korean.
+
+    한국어:
+        Streamlit 화면 문구를 선택한 언어에 맞춰 영어 또는 한국어로 보여줍니다.
+    """
+    return korean if st.session_state.get("ui_language") == "한국어" else english
+
+
 @st.cache_resource
 def load_ui_model(model_path: str):
     """Load and cache the trained model across Streamlit reruns."""
@@ -69,6 +81,64 @@ def count_raw_images(raw_dir: Path) -> dict[str, int]:
     return counts
 
 
+def use_photo_folder(directory: Path) -> None:
+    """Set the selected raw photo folder."""
+    selected_dir = str(directory.expanduser().resolve())
+    st.session_state["raw_dir_text"] = selected_dir
+
+
+def choose_folder_with_macos_dialog() -> Path | None:
+    """Open a native macOS folder picker when Streamlit is running locally."""
+    if sys.platform != "darwin":
+        return None
+
+    prompt = ui_text(
+        "Select the parent folder that contains location folders",
+        "위치별 폴더가 들어 있는 상위 폴더를 선택하세요",
+    )
+    script = f'POSIX path of (choose folder with prompt "{prompt}")'
+    result = subprocess.run(
+        ["osascript", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    selected_path = result.stdout.strip()
+    return Path(selected_path) if selected_path else None
+
+
+def render_folder_selector(default_dir: Path) -> None:
+    """Render a single folder picker button for the raw image directory."""
+    if "raw_dir_text" not in st.session_state:
+        st.session_state["raw_dir_text"] = str(default_dir)
+
+    st.markdown(f"#### {ui_text('Select Photo Folder', '사진 폴더 선택')}")
+    if st.button(
+        ui_text("Choose Photo Folder", "사진 폴더 선택"),
+        use_container_width=True,
+        disabled=sys.platform != "darwin",
+    ):
+        selected_dir = choose_folder_with_macos_dialog()
+        if selected_dir is not None:
+            use_photo_folder(selected_dir)
+            st.rerun()
+        st.warning(ui_text(
+            "The macOS folder picker was cancelled or could not be opened.",
+            "macOS 폴더 선택창이 취소되었거나 열리지 않았습니다.",
+        ))
+
+    st.caption(ui_text("Selected folder:", "선택된 폴더:"))
+    st.code(st.session_state["raw_dir_text"], language=None)
+
+    if sys.platform != "darwin":
+        st.info(ui_text(
+            "Native folder selection is only available on macOS in this app.",
+            "이 앱의 기본 폴더 선택창은 macOS에서만 사용할 수 있습니다.",
+        ))
+
+
 def run_command(command: list[str], log_label: str) -> bool:
     """Run a project command and stream logs into the Streamlit page."""
     st.markdown(f"#### {log_label}")
@@ -92,26 +162,30 @@ def run_command(command: list[str], log_label: str) -> bool:
         log_box.code("\n".join(lines[-80:]))
     return_code = process.wait()
     if return_code == 0:
-        st.success(f"완료: {log_label}")
+        st.success(ui_text(f"Completed: {log_label}", f"완료: {log_label}"))
         return True
-    st.error(f"실패: {log_label} (exit code {return_code})")
+    st.error(ui_text(
+        f"Failed: {log_label} (exit code {return_code})",
+        f"실패: {log_label} (exit code {return_code})",
+    ))
     return False
 
 
 def show_data_and_training_ui() -> None:
     """Render local folder selection, dataset preparation, and training controls."""
-    st.subheader("데이터 준비 및 학습 실행 / Prepare Data and Train")
+    st.subheader(ui_text("Prepare Data and Train", "데이터 준비 및 학습 실행"))
     st.write(
-        "Google Takeout으로 받은 사진을 위치별 하위 폴더로 정리한 뒤, "
-        "그 상위 폴더 경로를 입력하세요. 예: `data/raw/`"
+        ui_text(
+            "Enter the parent folder that contains location class folders. "
+            "Example: `data/raw/`",
+            "위치별 하위 폴더로 직접 정리한 사진의 상위 폴더 경로를 입력하세요. "
+            "예: `data/raw/`",
+        )
     )
 
-    default_raw_dir = str(RAW_DATA_DIR)
-    raw_dir_text = st.text_input(
-        "사진 폴더 경로 / Photo folder path",
-        value=default_raw_dir,
-        help="이 폴더 안에 Santa_Cruz, San_Francisco 같은 클래스 폴더가 있어야 합니다.",
-    )
+    render_folder_selector(RAW_DATA_DIR)
+
+    raw_dir_text = st.session_state["raw_dir_text"]
     raw_dir = Path(raw_dir_text).expanduser()
     if not raw_dir.is_absolute():
         raw_dir = PROJECT_ROOT / raw_dir
@@ -125,13 +199,20 @@ def show_data_and_training_ui() -> None:
         st.dataframe(count_frame, hide_index=True, use_container_width=True)
         if any(count < 7 for count in counts.values()):
             st.warning(
-                "각 위치 클래스에는 최소 7장의 유효 이미지가 필요합니다. "
-                "실제로는 클래스마다 더 많은 사진을 권장합니다."
+                ui_text(
+                    "Each location class needs at least 7 valid images. "
+                    "More photos per class are recommended for better results.",
+                    "각 위치 클래스에는 최소 7장의 유효 이미지가 필요합니다. "
+                    "실제로는 클래스마다 더 많은 사진을 권장합니다.",
+                )
             )
     else:
-        st.info("아직 읽을 수 있는 위치별 이미지 폴더를 찾지 못했습니다.")
+        st.info(ui_text(
+            "No readable location image folders were found yet.",
+            "아직 읽을 수 있는 위치별 이미지 폴더를 찾지 못했습니다.",
+        ))
 
-    st.markdown("#### 학습 설정 / Training Settings")
+    st.markdown(f"#### {ui_text('Training Settings', '학습 설정')}")
     setting_columns = st.columns(4)
     batch_size = setting_columns[0].number_input(
         "Batch size", min_value=1, max_value=256, value=16, step=1
@@ -162,20 +243,26 @@ def show_data_and_training_ui() -> None:
         format="%.6f",
     )
     run_evaluation = st.checkbox(
-        "학습 후 테스트 평가까지 실행 / Run evaluation after training",
+        ui_text("Run evaluation after training", "학습 후 테스트 평가까지 실행"),
         value=True,
     )
 
-    st.markdown("#### 실행 / Run")
-    prepare_only = st.button("데이터셋만 준비 / Prepare Dataset Only")
-    train_button = st.button("데이터 준비 후 학습 시작 / Prepare and Train")
+    st.markdown(f"#### {ui_text('Run', '실행')}")
+    prepare_only = st.button(ui_text("Prepare Dataset Only", "데이터셋만 준비"))
+    train_button = st.button(ui_text("Prepare and Train", "데이터 준비 후 학습 시작"))
 
     if prepare_only or train_button:
         if not raw_dir.exists():
-            st.error(f"사진 폴더가 존재하지 않습니다: {raw_dir}")
+            st.error(ui_text(
+                f"Photo folder does not exist: {raw_dir}",
+                f"사진 폴더가 존재하지 않습니다: {raw_dir}",
+            ))
             return
         if len(counts) < 2:
-            st.error("최소 두 개 이상의 위치 클래스 폴더가 필요합니다.")
+            st.error(ui_text(
+                "At least two location class folders are required.",
+                "최소 두 개 이상의 위치 클래스 폴더가 필요합니다.",
+            ))
             return
 
         prepare_command = [
@@ -187,7 +274,7 @@ def show_data_and_training_ui() -> None:
             str(PROCESSED_DATA_DIR),
             "--overwrite",
         ]
-        if not run_command(prepare_command, "1. Dataset preparation"):
+        if not run_command(prepare_command, ui_text("1. Dataset preparation", "1. 데이터셋 준비")):
             return
         if prepare_only:
             return
@@ -210,7 +297,7 @@ def show_data_and_training_ui() -> None:
             "--num-workers",
             str(int(num_workers)),
         ]
-        if not run_command(train_command, "2. Model training"):
+        if not run_command(train_command, ui_text("2. Model training", "2. 모델 학습")):
             return
 
         if run_evaluation:
@@ -220,31 +307,41 @@ def show_data_and_training_ui() -> None:
                 "--data-dir",
                 str(PROCESSED_DATA_DIR),
             ]
-            if not run_command(evaluate_command, "3. Test evaluation"):
+            if not run_command(evaluate_command, ui_text("3. Test evaluation", "3. 테스트 평가")):
                 return
 
         load_ui_model.clear()
-        st.success("전체 학습 작업이 완료되었습니다. 예측 탭과 결과 탭에서 확인하세요.")
+        st.success(ui_text(
+            "The full training workflow is complete. Check the prediction and results tabs.",
+            "전체 학습 작업이 완료되었습니다. 예측 탭과 결과 탭에서 확인하세요.",
+        ))
 
 
 def show_prediction_ui() -> None:
     """Render image upload, prediction, probability, and Grad-CAM controls."""
-    st.subheader("새 사진 위치 예측 / Predict a New Photo")
+    st.subheader(ui_text("Predict a New Photo", "새 사진 위치 예측"))
     st.write(
-        "사진을 업로드하면 학습된 ResNet50 모델이 위치 후보와 확률을 보여줍니다. "
-        "EXIF GPS 정보는 사용하지 않습니다."
+        ui_text(
+            "Upload a photo and the trained ResNet50 model will show the top location "
+            "candidates with probabilities. EXIF GPS information is not used.",
+            "사진을 업로드하면 학습된 ResNet50 모델이 위치 후보와 확률을 보여줍니다. "
+            "EXIF GPS 정보는 사용하지 않습니다.",
+        )
     )
 
     if not BEST_MODEL_PATH.exists():
-        st.info("예측하려면 먼저 데이터/학습 탭에서 모델을 학습하세요.")
+        st.info(ui_text(
+            "Train a model in the Data & Training tab before prediction.",
+            "예측하려면 먼저 데이터/학습 탭에서 모델을 학습하세요.",
+        ))
         return
 
     uploaded_file = st.file_uploader(
-        "JPG, PNG, HEIC 이미지를 선택하세요.",
+        ui_text("Choose a JPG, PNG, or HEIC image.", "JPG, PNG, HEIC 이미지를 선택하세요."),
         type=["jpg", "jpeg", "png", "heic", "heif"],
     )
     if uploaded_file is None:
-        st.info("예측할 사진을 업로드하세요.")
+        st.info(ui_text("Upload a photo to predict.", "예측할 사진을 업로드하세요."))
         return
 
     try:
@@ -252,10 +349,16 @@ def show_prediction_ui() -> None:
         image.load()
         image = image.convert("RGB")
     except (OSError, ValueError, UnidentifiedImageError) as error:
-        st.error(f"이미지를 읽을 수 없습니다: {error}")
+        st.error(ui_text(
+            f"Could not read the image: {error}",
+            f"이미지를 읽을 수 없습니다: {error}",
+        ))
         return
 
-    with st.spinner("모델을 불러오고 위치를 예측하는 중입니다..."):
+    with st.spinner(ui_text(
+        "Loading the model and predicting the location...",
+        "모델을 불러오고 위치를 예측하는 중입니다...",
+    )):
         model, class_names, checkpoint, device = load_ui_model(str(BEST_MODEL_PATH))
         predictions, probabilities = predict_image(
             model, image, class_names, device, top_k=3
@@ -264,16 +367,20 @@ def show_prediction_ui() -> None:
     top_prediction = predictions[0]
     image_column, result_column = st.columns([1.2, 1])
     with image_column:
-        st.image(image, caption="업로드한 이미지 / Uploaded Image", use_container_width=True)
+        st.image(image, caption=ui_text("Uploaded Image", "업로드한 이미지"), use_container_width=True)
     with result_column:
         st.metric(
-            "가장 가능성 높은 위치 / Top Prediction",
+            ui_text("Top Prediction", "가장 가능성 높은 위치"),
             format_location(str(top_prediction["location"])),
             f"{float(top_prediction['probability']):.2%}",
         )
         st.caption(
-            f"실행 장치: {device} | 체크포인트 epoch: {checkpoint['epoch']} | "
-            f"검증 정확도: {checkpoint['val_accuracy']:.2%}"
+            ui_text(
+                f"Device: {device} | Checkpoint epoch: {checkpoint['epoch']} | "
+                f"Validation accuracy: {checkpoint['val_accuracy']:.2%}",
+                f"실행 장치: {device} | 체크포인트 epoch: {checkpoint['epoch']} | "
+                f"검증 정확도: {checkpoint['val_accuracy']:.2%}",
+            )
         )
         prediction_frame = pd.DataFrame(predictions)
         prediction_frame["location"] = prediction_frame["location"].map(format_location)
@@ -283,8 +390,8 @@ def show_prediction_ui() -> None:
         st.dataframe(
             prediction_frame[["location", "probability_percent"]].rename(
                 columns={
-                    "location": "Location",
-                    "probability_percent": "Probability (%)",
+                    "location": ui_text("Location", "위치"),
+                    "probability_percent": ui_text("Probability (%)", "확률 (%)"),
                 }
             ),
             hide_index=True,
@@ -294,14 +401,14 @@ def show_prediction_ui() -> None:
             prediction_frame.set_index("location")["probability_percent"]
         )
 
-    if st.checkbox("Grad-CAM으로 모델이 본 영역 표시 / Show Grad-CAM", value=True):
+    if st.checkbox(ui_text("Show Grad-CAM", "Grad-CAM으로 모델이 본 영역 표시"), value=True):
         class_index = int(probabilities.argmax().item())
-        with st.spinner("Grad-CAM을 생성하는 중입니다..."):
+        with st.spinner(ui_text("Generating Grad-CAM...", "Grad-CAM을 생성하는 중입니다...")):
             heatmap, overlay = create_gradcam_visuals(
                 model, image, device, class_index
             )
         original_column, heatmap_column, overlay_column = st.columns(3)
-        original_column.image(image, caption="Original", use_container_width=True)
+        original_column.image(image, caption=ui_text("Original", "원본"), use_container_width=True)
         heatmap_column.image(
             heatmap,
             caption="Grad-CAM Heatmap",
@@ -310,15 +417,18 @@ def show_prediction_ui() -> None:
         )
         overlay_column.image(
             overlay,
-            caption="Prediction Focus",
+            caption=ui_text("Prediction Focus", "예측에 영향을 준 영역"),
             use_container_width=True,
         )
 
 
 def show_training_results_ui() -> None:
     """Render saved learning curves and evaluation artifacts."""
-    st.subheader("학습 및 평가 결과 / Training and Evaluation Results")
-    st.write("`train.py`와 `evaluate.py`가 저장한 결과를 한 화면에서 확인합니다.")
+    st.subheader(ui_text("Training and Evaluation Results", "학습 및 평가 결과"))
+    st.write(ui_text(
+        "Review the saved outputs from `train.py` and `evaluate.py` in one place.",
+        "`train.py`와 `evaluate.py`가 저장한 결과를 한 화면에서 확인합니다.",
+    ))
 
     history_path = HISTORY_PATH
     report_path = REPORTS_DIR / "classification_report.csv"
@@ -327,7 +437,7 @@ def show_training_results_ui() -> None:
 
     if history_path.exists():
         history = pd.read_csv(history_path)
-        st.markdown("#### 학습 곡선 / Learning Curves")
+        st.markdown(f"#### {ui_text('Learning Curves', '학습 곡선')}")
         loss_column, accuracy_column = st.columns(2)
         loss_column.line_chart(
             history.set_index("epoch")[["train_loss", "val_loss"]],
@@ -337,39 +447,54 @@ def show_training_results_ui() -> None:
             history.set_index("epoch")[["train_accuracy", "val_accuracy"]],
             y_label="Accuracy",
         )
-        with st.expander("학습 기록 CSV 보기 / View Training History"):
+        with st.expander(ui_text("View Training History CSV", "학습 기록 CSV 보기")):
             st.dataframe(history, hide_index=True, use_container_width=True)
     else:
-        st.info("학습 기록이 없습니다. 먼저 `python src/train.py`를 실행하세요.")
+        st.info(ui_text(
+            "No training history found. Run `python src/train.py` first.",
+            "학습 기록이 없습니다. 먼저 `python src/train.py`를 실행하세요.",
+        ))
 
     if report_path.exists():
-        st.markdown("#### 클래스별 성능 / Per-Class Metrics")
+        st.markdown(f"#### {ui_text('Per-Class Metrics', '클래스별 성능')}")
         report = pd.read_csv(report_path, index_col=0)
         st.dataframe(report, use_container_width=True)
 
     if confusion_matrix_path.exists():
-        st.markdown("#### 혼동 행렬 / Confusion Matrix")
+        st.markdown(f"#### {ui_text('Confusion Matrix', '혼동 행렬')}")
         st.image(str(confusion_matrix_path), use_container_width=True)
     elif history_path.exists():
-        st.info("혼동 행렬이 없습니다. `python src/evaluate.py`를 실행하세요.")
+        st.info(ui_text(
+            "No confusion matrix found. Run `python src/evaluate.py`.",
+            "혼동 행렬이 없습니다. `python src/evaluate.py`를 실행하세요.",
+        ))
 
     if summary_path.exists():
-        with st.expander("평가 요약 보기 / View Evaluation Summary"):
+        with st.expander(ui_text("View Evaluation Summary", "평가 요약 보기")):
             st.text(summary_path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
+    language = st.sidebar.radio(
+        "Language / 언어",
+        ["한국어", "English"],
+        horizontal=True,
+    )
+    st.session_state["ui_language"] = language
+
     st.title("Photo Geolocation Prediction using Deep Learning")
     st.caption(
-        "ResNet50 transfer learning training and result viewer | "
-        "ResNet50 전이 학습 실행 및 결과 확인 UI"
+        ui_text(
+            "ResNet50 transfer learning training and result viewer",
+            "ResNet50 전이 학습 실행 및 결과 확인 UI",
+        )
     )
 
     training_tab, prediction_tab, results_tab = st.tabs(
         [
-            "데이터/학습 / Data & Training",
-            "사진 예측 / Photo Prediction",
-            "학습 결과 / Training Results",
+            ui_text("Data & Training", "데이터/학습"),
+            ui_text("Photo Prediction", "사진 예측"),
+            ui_text("Training Results", "학습 결과"),
         ]
     )
     with training_tab:
