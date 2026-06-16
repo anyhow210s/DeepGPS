@@ -1,7 +1,0 @@
-Design system
-- Slide size: 1280x720 widescreen.
-- Background: warm off-white (#F7F3EA) with deep ink text (#17212B).
-- Accent colors: blue #2F6BFF for model/pipeline, amber #F4A340 for metrics, red #D95D5D for limitations, green #2E8B57 for demo.
-- Typography: Apple SD Gothic Neo / Arial fallback. Large claim titles, concise Korean body text.
-- Layouts: cover metric rail, problem split, data bars, pipeline flow, architecture diagram, training timeline, results dashboard, metric glossary, demo storyboard, lessons board.
-- Footer: small project label and slide number.

@@ -1,8 +1,0 @@
-Source notes
-- Project workspace: /Users/koscom/Documents/DeepGPS
-- Model code: src/config.py, src/train.py, src/evaluate.py, src/app.py
-- Training history: outputs/reports/training_history.csv
-- Evaluation summary: outputs/reports/evaluation_summary.txt
-- Classification report: outputs/reports/classification_report.csv
-- Figures: outputs/figures/training_history.png, outputs/figures/confusion_matrix.png
-- No external AI APIs used. Training and inference are local PyTorch workflows.
